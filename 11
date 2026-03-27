@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>数字华容道 Cyberpunk</title>
+
+<style>
+body {
+  margin:0;
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-family: "Arial";
+  color:#fff;
+
+  background: radial-gradient(circle at top, #0a0f1f, #02040a);
+}
+
+.container {
+  text-align:center;
+}
+
+h1 {
+  color:#00f7ff;
+  text-shadow:0 0 10px #00f7ff;
+}
+
+.desc {
+  font-size:14px;
+  color:#aaa;
+  margin-bottom:15px;
+}
+
+.controls {
+  margin-bottom:15px;
+}
+
+select, button {
+  padding:8px 14px;
+  margin:5px;
+  border-radius:8px;
+  border:1px solid #00f7ff;
+  background:transparent;
+  color:#00f7ff;
+  cursor:pointer;
+  box-shadow:0 0 8px #00f7ff inset;
+}
+
+button:hover {
+  background:#00f7ff;
+  color:#000;
+}
+
+#board {
+  display:grid;
+  gap:10px;
+  justify-content:center;
+}
+
+.tile {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-weight:bold;
+  border-radius:10px;
+  cursor:pointer;
+
+  border:1px solid rgba(0,255,255,0.3);
+  box-shadow:
+    0 0 10px rgba(0,255,255,0.5),
+    inset 0 0 10px rgba(0,255,255,0.3);
+
+  transition:0.2s;
+}
+
+.tile:hover {
+  transform:scale(1.1);
+  box-shadow:
+    0 0 20px #00f7ff,
+    inset 0 0 15px #00f7ff;
+}
+
+.empty {
+  background: transparent;
+  box-shadow:none;
+  border:none;
+}
+
+.info {
+  margin-top:10px;
+  color:#0ff;
+}
+
+.win {
+  color:#ff00ff;
+  text-shadow:0 0 10px #ff00ff;
+}
+
+/* 不同数值颜色（赛博渐变） */
+[data-val="1"]{color:#00f7ff;}
+[data-val="2"]{color:#00ff88;}
+[data-val="3"]{color:#aaff00;}
+[data-val="4"]{color:#ffea00;}
+[data-val="5"]{color:#ff9100;}
+[data-val="6"]{color:#ff3d00;}
+[data-val="7"]{color:#ff00ff;}
+[data-val="8"]{color:#8c00ff;}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>🧩 CYBER 华容道</h1>
+
+  <div class="desc">
+    点击相邻方块移动，完成排序挑战
+  </div>
+
+  <div class="controls">
+    难度：
+    <select id="sizeSelect" onchange="changeSize()">
+      <option value="3">3 x 3</option>
+      <option value="4" selected>4 x 4</option>
+      <option value="5">5 x 5</option>
+    </select>
+
+    <button onclick="shuffle()">打乱</button>
+  </div>
+
+  <div id="board"></div>
+
+  <div class="info">
+    步数：<span id="steps">0</span> |
+    最佳：<span id="best">-</span>
+  </div>
+
+  <div id="status" class="win"></div>
+</div>
+
+<script>
+let size = 4;
+let board = [];
+let steps = 0;
+
+function init(){
+  board = [...Array(size*size-1).keys()].map(x=>x+1);
+  board.push(0);
+  steps = 0;
+  loadBest();
+  render();
+}
+
+function render(){
+  const boardDiv = document.getElementById("board");
+  boardDiv.innerHTML = "";
+  boardDiv.style.gridTemplateColumns = `repeat(${size}, 70px)`;
+
+  board.forEach((num,i)=>{
+    const tile = document.createElement("div");
+    tile.className = "tile";
+
+    tile.style.width = "70px";
+    tile.style.height = "70px";
+
+    if(num===0){
+      tile.classList.add("empty");
+    }else{
+      tile.innerText = num;
+      tile.onclick = ()=>move(i);
+
+      tile.setAttribute("data-val", Math.min(8, Math.floor(Math.log2(num)||1)));
+    }
+
+    boardDiv.appendChild(tile);
+  });
+
+  document.getElementById("steps").innerText = steps;
+}
+
+function move(i){
+  const empty = board.indexOf(0);
+  if(isAdjacent(i,empty)){
+    [board[i],board[empty]] = [board[empty],board[i]];
+    steps++;
+    render();
+    checkWin();
+  }
+}
+
+function isAdjacent(i,j){
+  const x1=i%size,y1=Math.floor(i/size);
+  const x2=j%size,y2=Math.floor(j/size);
+  return Math.abs(x1-x2)+Math.abs(y1-y2)===1;
+}
+
+function shuffle(){
+  for(let i=0;i<300;i++){
+    let empty = board.indexOf(0);
+    let moves = [];
+
+    [empty-1,empty+1,empty-size,empty+size].forEach(m=>{
+      if(m>=0 && m<size*size && isAdjacent(m,empty)) moves.push(m);
+    });
+
+    let rand = moves[Math.floor(Math.random()*moves.length)];
+    [board[rand],board[empty]] = [board[empty],board[rand]];
+  }
+  steps=0;
+  document.getElementById("status").innerText="";
+  render();
+}
+
+function checkWin(){
+  for(let i=0;i<size*size-1;i++){
+    if(board[i]!==i+1) return;
+  }
+
+  document.getElementById("status").innerText="🎉 系统重组完成";
+
+  let key = "best_"+size;
+  let best = localStorage.getItem(key);
+
+  if(!best || steps < best){
+    localStorage.setItem(key,steps);
+    document.getElementById("best").innerText = steps + " ★";
+  }
+}
+
+function loadBest(){
+  let key = "best_"+size;
+  let best = localStorage.getItem(key);
+  document.getElementById("best").innerText = best || "-";
+}
+
+function changeSize(){
+  size = parseInt(document.getElementById("sizeSelect").value);
+  init();
+}
+
+init();
+</script>
+
+</body>
+</html>
