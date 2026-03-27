@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>旅行青马 Pro</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  overflow:hidden;
+  color:#fff;
+}
+
+/* 背景 */
+.bg{
+  position:absolute;
+  width:100%;
+  height:100%;
+  transition:1s;
+}
+
+.city{
+  background:#05070d;
+}
+
+.city::after{
+  content:"";
+  position:absolute;
+  width:100%;
+  height:100%;
+  background:
+    linear-gradient(to top,rgba(0,255,255,0.1),transparent),
+    repeating-linear-gradient(
+      to right,
+      rgba(0,255,255,0.1) 0px,
+      rgba(0,255,255,0.1) 2px,
+      transparent 2px,
+      transparent 50px
+    );
+}
+
+.nature{
+  background: radial-gradient(circle,#1b5e20,#4caf50);
+}
+
+/* 地图（简单世界轮廓感） */
+.map{
+  position:absolute;
+  width:100%;
+  height:100%;
+  background:
+    radial-gradient(circle at 30% 40%,rgba(255,255,255,0.1),transparent 40%),
+    radial-gradient(circle at 70% 60%,rgba(255,255,255,0.08),transparent 40%);
+}
+
+/* 马 */
+.horse{
+  position:absolute;
+  font-size:60px;
+  transition:1s;
+  text-shadow:0 0 15px #fff;
+}
+
+/* UI */
+.ui{
+  position:absolute;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  text-align:center;
+}
+
+button{
+  margin:5px;
+  padding:8px 15px;
+  border:none;
+  border-radius:8px;
+  background:#00f7ff;
+  color:#000;
+  cursor:pointer;
+}
+
+.panel{
+  position:absolute;
+  top:20px;
+  left:20px;
+  background:rgba(0,0,0,0.4);
+  padding:10px;
+  border-radius:10px;
+  font-size:14px;
+}
+
+.postcards{
+  position:absolute;
+  right:20px;
+  top:20px;
+  width:180px;
+  max-height:300px;
+  overflow:auto;
+  background:rgba(0,0,0,0.5);
+  padding:10px;
+  border-radius:10px;
+  font-size:12px;
+}
+
+.leaf{
+  position:absolute;
+  color:#a5d6a7;
+  animation: fall linear infinite;
+}
+
+@keyframes fall{
+  from{transform:translateY(-10px);}
+  to{transform:translateY(100vh);}
+}
+</style>
+</head>
+
+<body>
+
+<div id="bg" class="bg city"></div>
+<div class="map"></div>
+
+<div id="horse" class="horse">🐎</div>
+
+<div class="panel">
+  食物：<span id="food">3</span><br>
+  状态：<span id="state">在家</span><br>
+  上次出发：<span id="last">-</span>
+</div>
+
+<div class="postcards">
+  📮 明信片收藏：
+  <div id="cards"></div>
+</div>
+
+<div class="ui">
+  <button onclick="addFood()">+食物</button>
+  <button onclick="startTrip()">出发</button>
+  <button onclick="changeSkin()">换马</button>
+</div>
+
+<script>
+let food = parseInt(localStorage.getItem("food")||3);
+let postcards = JSON.parse(localStorage.getItem("cards")||"[]");
+let lastTrip = localStorage.getItem("lastTrip");
+let skinIndex = 0;
+
+const skins = ["🐎","🦄","🐴","🐐"];
+
+const events = [
+  "🌲 森林散步",
+  "🏔 山顶发呆",
+  "🌊 海边吹风",
+  "🏙 城市打工",
+  "📷 寄回照片",
+  "🍎 找到好吃的"
+];
+
+const horse = document.getElementById("horse");
+
+function moveHorse(){
+  horse.style.left = Math.random()*80+"%";
+  horse.style.top = Math.random()*70+"%";
+}
+
+/* 背包 */
+function addFood(){
+  food++;
+  save();
+  updateUI();
+}
+
+/* 出发 */
+function startTrip(){
+  if(food<=0){
+    alert("没有食物！");
+    return;
+  }
+
+  food--;
+  localStorage.setItem("lastTrip",Date.now());
+  document.getElementById("state").innerText="旅行中";
+
+  document.getElementById("bg").className="bg nature";
+
+  let count=0;
+  let timer=setInterval(()=>{
+    moveHorse();
+
+    let e = events[Math.floor(Math.random()*events.length)];
+    postcards.push(e);
+    renderCards();
+
+    createLeaves();
+
+    count++;
+    if(count>5){
+      clearInterval(timer);
+      goHome();
+    }
+  },1500);
+
+  save();
+}
+
+/* 回家 + 离线收益 */
+function goHome(){
+  setTimeout(()=>{
+    document.getElementById("bg").className="bg city";
+    document.getElementById("state").innerText="已回家";
+
+    food += Math.floor(Math.random()*3);
+    save();
+    updateUI();
+  },2000);
+}
+
+/* 离线收益 */
+function checkOffline(){
+  if(!lastTrip) return;
+
+  let diff = Date.now() - lastTrip;
+  let gain = Math.floor(diff/5000);
+
+  if(gain>0){
+    food += gain;
+    postcards.push("🎁 带回离线礼物 x"+gain);
+    save();
+  }
+}
+
+/* 明信片 */
+function renderCards(){
+  const el = document.getElementById("cards");
+  el.innerHTML = postcards.slice(-10).map(x=>"<div>"+x+"</div>").join("");
+}
+
+/* 皮肤 */
+function changeSkin(){
+  skinIndex = (skinIndex+1)%skins.length;
+  horse.innerText = skins[skinIndex];
+}
+
+/* 粒子 */
+function createLeaves(){
+  for(let i=0;i<5;i++){
+    let leaf=document.createElement("div");
+    leaf.className="leaf";
+    leaf.innerText="🍃";
+    leaf.style.left=Math.random()*100+"%";
+    leaf.style.animationDuration=(3+Math.random()*3)+"s";
+    document.body.appendChild(leaf);
+
+    setTimeout(()=>leaf.remove(),5000);
+  }
+}
+
+/* UI */
+function updateUI(){
+  document.getElementById("food").innerText=food;
+  document.getElementById("last").innerText=new Date().toLocaleTimeString();
+}
+
+function save(){
+  localStorage.setItem("food",food);
+  localStorage.setItem("cards",JSON.stringify(postcards));
+}
+
+checkOffline();
+updateUI();
+renderCards();
+moveHorse();
+</script>
+
+</body>
+</html>
